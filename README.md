@@ -14,18 +14,20 @@ This repository contains programming problem sets and an automatic grader used f
 
 Example tree (one problem set shown):
 
+```
 psets/
 └─ Problem Set 0/
-    ├─ anagram_check.py
-    ├─ autograder.py
-    ├─ Instructions.md
-    └─ testcases/
+   ├─ anagram_check.py
+   ├─ autograder.py
+   ├─ Instructions.md
+   └─ testcases/
+```
 
 ## Quickstart — run the autograder (PowerShell)
 
 Prerequisites:
 
-- Python 3.x installed and available on PATH.
+- Python 3.10+ installed and available on PATH.
 
 Run the autograder for a specific problem set (from repository root) using PowerShell:
 
@@ -60,7 +62,7 @@ python autograder.py -d -q 1/test1.json
 
 The top-level `autograder.sh` script can be used on Unix-like systems to iterate over all problem sets; it calls `python3 autograder.py` inside each problem set folder and records pass/fail in a `grading_status.txt` file.
 
-## How the autograder works (brief)
+## How the autograder works
 
 - Testcases are JSON files located under `psets/<Problem Set>/testcases/`.
 - `psets/<Problem Set>/autograder.py` loads `testcases/problems.json` which lists problems and test metadata.

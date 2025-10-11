@@ -3,8 +3,9 @@ __pycache__/
 **/__pycache__/
 *.py[cod]
 
-# Ignore pdfs and .zip files
+# Ignore pdfs, html and .zip files
 *.pdf
+*.html
 *.zip
 
 # Ignore student info files and time configuration files
