@@ -5,25 +5,38 @@ echo "===== RUNNING AUTO-GRADER ====="
 status_file="grading_status.txt"
 > "$status_file"
 
-find psets -mindepth 1 -maxdepth 1 -type d | while IFS= read -r dir; do
+failed_any=0
+for dir in psets/*/; do
+    [ -d "$dir" ] || continue
     echo "===== GRADING ${dir} ====="
 
-    set +e
-    python3 autograder.py > "${dir}/grader_output.log" 2>&1
-    exit_code=$?
-    set -e
+    (cd "$dir" && python3 autograder.py) > "${dir%/}/grader_output.log" 2>&1
+    
+    file_read=$(cat "${dir%/}/grader_output.log")
 
-    if [[ $exit_code -eq 0 ]]; then
-        echo -e "${dir} PASSED"
-        echo "${dir}: PASS" >> "$status_file"
-    else
-        echo -e "${dir} FAILED (exit code $exit_code)"
+    if echo "$file_read" | grep -q "FAIL"; then
+        echo "${dir} FAILED"
         echo "${dir}: FAIL" >> "$status_file"
+        failed_any=1
+    else
+        echo "${dir} PASSED"
+        echo "${dir}: PASS" >> "$status_file"
     fi
 
-    cat "${dir}/grader_output.log"
+    echo "----- LOG OUTPUT -----"
+    cat "${dir%/}/grader_output.log"
+
+    # Delete log file
+    rm "${dir%/}/grader_output.log"
+
     echo "==============================="
 done
+
+# Exit non-zero if any problem set failed so CI will report failure
+if [[ $failed_any -ne 0 ]]; then
+    echo "One or more problem sets failed. Exiting with non-zero status."
+    exit 2
+fi
 
 echo "===== AUTO-GRADER FINISHED ====="
 if grep -q "FAIL" "$status_file"; then

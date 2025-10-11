@@ -7,10 +7,14 @@ __pycache__/
 *.pdf
 *.zip
 
-# Ignore student info files and time configuration files (often contain PII / machine-specific data)
+# Ignore student info files and time configuration files
 student_info.json
 time_config.json
 
 # Ignore logs in any nested logs/ directory
 logs/
 **/logs/
+
+# Ignore grader output files
+grading_status.txt
+*.log
