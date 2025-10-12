@@ -41,4 +41,4 @@ def caesar_dechiper(ciphered: str, dictionary: List[str]) -> DechiperResult:
             current_max_correct = correct_words
             current_deciphered = deciphered
             current_shift = i
-    return (current_deciphered, current_shift, len(current_deciphered.split(" ")) - current_max_correct)
+    return (current_deciphered, current_shift, current_max_correct)
