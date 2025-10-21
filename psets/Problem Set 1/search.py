@@ -5,6 +5,18 @@ from helpers.utils import NotImplemented
 #TODO: Import any modules you want to use
 import heapq
 
+def pop_frontier(frontier):
+    i = 0
+    min_cost, min_state, curr_path = frontier[0]
+    for index, (cost, state, path) in enumerate(frontier):
+        if (min_cost > cost):
+            min_cost = cost
+            min_state = state
+            curr_path = path
+            i = index
+    del frontier[i]
+    return min_cost, min_state, curr_path
+
 # All search functions take a problem and a state
 # If it is an informed search function, it will also receive a heuristic function
 # S and A are used for generic typing where S represents the state type and A represents the action type
@@ -43,13 +55,71 @@ def DepthFirstSearch(problem: Problem[S, A], initial_state: S) -> Solution:
     return None
 
 def UniformCostSearch(problem: Problem[S, A], initial_state: S) -> Solution:
-    #TODO: ADD YOUR CODE HERE
-    NotImplemented()
+    frontier = [(0, initial_state, [])]  # (cost, state, path)
+    visited = dict([(initial_state, 0)])  # state: cost
+    explored = set()
+    while frontier:
+        cost, state, path_taken = pop_frontier(frontier)
+        if problem.is_goal(state):
+            return path_taken
+
+        explored.add(state)
+        for action in problem.get_actions(state):
+            successor = problem.get_successor(state, action)
+            new_cost = cost + problem.get_cost(state, action)
+            if successor not in explored and successor not in visited:
+                visited[successor] = new_cost
+                frontier.append((new_cost, successor, path_taken + [action]))
+            elif successor in visited and new_cost < visited[successor]:
+                visited[successor] = new_cost
+                for index, (_, s, _) in enumerate(frontier):
+                    if s == successor:
+                        frontier[index] = (new_cost, successor, path_taken + [action])
+                        break
+    return None
 
 def AStarSearch(problem: Problem[S, A], initial_state: S, heuristic: HeuristicFunction) -> Solution:
-    #TODO: ADD YOUR CODE HERE
-    NotImplemented()
+    frontier = []
+    counter = 0
+    heapq.heappush(frontier, (heuristic(problem, initial_state), counter, (initial_state, 0, [])))  # (h, counter, (state, cost, path))
+    visited = set()
+    while frontier:
+        _, _, (state, cost,  path_taken) = heapq.heappop(frontier)
+        if problem.is_goal(state):
+            return path_taken
+
+        if state in visited:
+            continue
+        visited.add(state)
+
+        for action in problem.get_actions(state):
+            successor = problem.get_successor(state, action)
+            if successor not in visited:
+                counter += 1
+                n_cost = cost + problem.get_cost(state, action)
+                heapq.heappush(frontier, (heuristic(problem, successor) + n_cost, counter, (successor, n_cost, path_taken + [action])))
+
+    return None
+
 
 def BestFirstSearch(problem: Problem[S, A], initial_state: S, heuristic: HeuristicFunction) -> Solution:
-    #TODO: ADD YOUR CODE HERE
-    NotImplemented()
+    frontier = []
+    counter = 0
+    heapq.heappush(frontier, (heuristic(problem, initial_state), counter, (initial_state, [])))  # (h, counter, (state, path))
+    visited = set()
+    while frontier:
+        _, _, (state, path_taken) = heapq.heappop(frontier)
+        if problem.is_goal(state):
+            return path_taken
+
+        if state in visited:
+            continue
+        visited.add(state)
+
+        for action in problem.get_actions(state):
+            successor = problem.get_successor(state, action)
+            if successor not in visited:
+                counter += 1
+                heapq.heappush(frontier, (heuristic(problem, successor), counter, (successor, path_taken + [action])))
+
+    return None
