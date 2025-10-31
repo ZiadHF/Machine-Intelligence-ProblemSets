@@ -81,22 +81,19 @@ def UniformCostSearch(problem: Problem[S, A], initial_state: S) -> Solution:
 def AStarSearch(problem: Problem[S, A], initial_state: S, heuristic: HeuristicFunction) -> Solution:
     frontier = []
     counter = 0
+    current_costs = {initial_state: 0}
     heapq.heappush(frontier, (heuristic(problem, initial_state), counter, (initial_state, 0, [])))  # (h, counter, (state, cost, path))
-    visited = set()
     while frontier:
         _, _, (state, cost,  path_taken) = heapq.heappop(frontier)
         if problem.is_goal(state):
             return path_taken
 
-        if state in visited:
-            continue
-        visited.add(state)
-
         for action in problem.get_actions(state):
             successor = problem.get_successor(state, action)
-            if successor not in visited:
+            n_cost = cost + problem.get_cost(state, action)
+            if successor not in current_costs or n_cost < current_costs[successor]:
                 counter += 1
-                n_cost = cost + problem.get_cost(state, action)
+                current_costs[successor] = n_cost
                 heapq.heappush(frontier, (heuristic(problem, successor) + n_cost, counter, (successor, n_cost, path_taken + [action])))
 
     return None
@@ -106,20 +103,17 @@ def BestFirstSearch(problem: Problem[S, A], initial_state: S, heuristic: Heurist
     frontier = []
     counter = 0
     heapq.heappush(frontier, (heuristic(problem, initial_state), counter, (initial_state, [])))  # (h, counter, (state, path))
-    visited = set()
+    visited = set([initial_state])
     while frontier:
         _, _, (state, path_taken) = heapq.heappop(frontier)
         if problem.is_goal(state):
             return path_taken
-
-        if state in visited:
-            continue
-        visited.add(state)
 
         for action in problem.get_actions(state):
             successor = problem.get_successor(state, action)
             if successor not in visited:
                 counter += 1
                 heapq.heappush(frontier, (heuristic(problem, successor), counter, (successor, path_taken + [action])))
+                visited.add(successor)
 
     return None
