@@ -36,9 +36,4 @@ def calculate_exam_score(questions: list[dict], answers: list[bool]) -> tuple[in
 
         Output → (80, "B")
     '''
-    # return (sum(questions[i]["points"] for i in range(len(questions)) if answers[i]), score_to_grade(sum(questions[i]["points"] for i in range(len(questions)) if answers[i])))
-    score = 0
-    for i in range(len(questions)):
-        if answers[i] == True:
-            score = score + questions[i]["points"]
-    return (score, score_to_grade(score))
+    return (sum(questions[i]["points"] for i in range(len(questions)) if answers[i]), score_to_grade(sum(questions[i]["points"] for i in range(len(questions)) if answers[i])))

@@ -13,11 +13,4 @@ def word_histogram(text: str) -> dict:
     Example:
     word_histogram("cat dog cat") -> {"cat": 2, "dog": 1}
     '''
-    # return { word: text.split(" ").count(word) for word in text.split(" ") if len(word) > 0 }
-    word_dict = dict()
-    words = text.split(" ")
-    for word in words:
-        if len(word) == 0:
-            continue
-        word_dict[word] = word_dict.get(word, 0) + 1
-    return word_dict
+    return { word: text.split(" ").count(word) for word in text.split(" ") if len(word) > 0 }
