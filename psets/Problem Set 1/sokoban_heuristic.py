@@ -1,4 +1,4 @@
-from typing import Dict, FrozenSet
+from typing import Dict, FrozenSet, List
 from sokoban import SokobanProblem, SokobanState
 from mathutils import Direction, Point, manhattan_distance
 
@@ -7,7 +7,6 @@ from mathutils import Direction, Point, manhattan_distance
 def weak_heuristic(problem: SokobanProblem, state: SokobanState):
     return min(manhattan_distance(state.player, crate) for crate in state.crates) - 1
 
-import numpy as np
 from collections import deque
 import itertools
 
@@ -86,11 +85,12 @@ def calculate_dist(problem: SokobanProblem) -> Dict[Point, Dict[Point, int]]:
         total_dist[goal] = dist
     return total_dist
 
-def minimum_iteration(matrix : np.ndarray) -> float:
+def minimum_iteration(matrix : List[List[float]]) -> float:
     '''
     Finds the minimum value in each row and returns the sum of these minimums
     '''
-    workers, jobs = matrix.shape
+    workers = len(matrix)
+    jobs = len(matrix[0]) if workers > 0 else 0
     current_min = float('inf')
     for cols in itertools.permutations(range(jobs), workers):
         sum = 0
@@ -125,7 +125,7 @@ def strong_heuristic(problem: SokobanProblem, state: SokobanState) -> float:
     crates = list(state.crates)
     goals = list(problem.layout.goals)
     crates_number = len(crates)
-    distances = np.full((crates_number, crates_number), 1e9)
+    distances = [[1e9] * crates_number for _ in range(crates_number)]
 
     # Calculate the cost matrix
     for i in range(crates_number):
@@ -141,31 +141,33 @@ def strong_heuristic(problem: SokobanProblem, state: SokobanState) -> float:
 
 # ---------------- Unused Hungarian Algorithm Implementation ---------------- #
 
-def find_path(location: tuple, zero_matrix: np.ndarray):
+def find_path(location: tuple, zero_matrix: List[List[int]]):
     '''
     Finds an augmenting path in the zero matrix
     '''
     path = [location]
     while True:
         # find starred zero in this column
-        row_star = np.where(zero_matrix[:, path[-1][1]] == 1)[0]
+        row_star = [i for i in range(len(zero_matrix)) if zero_matrix[i][path[-1][1]] == 1]
         if len(row_star) == 0:
             break
         else:
             path.append((row_star[0], path[-1][1]))
-            col_prime = np.where(zero_matrix[path[-1][0], :] == 2)[0][0]
+            col_prime = [j for j in range(len(zero_matrix[0])) if zero_matrix[path[-1][0]][j] == 2][0]
             path.append((path[-1][0], col_prime))
     return path
 
-def mark_zeroes(matrix: np.ndarray):
+def mark_zeroes(matrix: List[List[float]]):
     '''
     Marks the zeroes in the matrix and returns the number of rows and columns covered
     '''
-    workers, jobs = matrix.shape
-    zero_matrix = np.zeros((workers, jobs), dtype=int)
-    rows_covered = np.zeros(workers, dtype=bool)
-    cols_covered = np.zeros(jobs, dtype=bool)
-    used_cols = np.zeros(jobs, dtype=bool)
+    workers = len(matrix)
+    jobs = len(matrix[0]) if workers > 0 else 0
+    zero_matrix = [[0 for _ in range(jobs)] for _ in range(workers)]
+    rows_covered = [False] * workers
+    cols_covered = [False] * jobs
+    used_cols = [False] * jobs
+    
     # For each row, find an arbitrary zero and mark it (I mark the first zero I find that still works within the constraints)
     for i in range(workers):
         for j in range(jobs):
@@ -178,7 +180,7 @@ def mark_zeroes(matrix: np.ndarray):
     while not done:
         # Cover columns containing a starred zero
         for j in range(jobs):
-            if any(zero_matrix[:, j] == 1):
+            if any(zero_matrix[i][j] == 1 for i in range(workers)):
                 cols_covered[j] = True
         found = False
         for i in range(workers):
@@ -199,31 +201,36 @@ def mark_zeroes(matrix: np.ndarray):
                         for r, c in path:
                             zero_matrix[r][c] = zero_matrix[r][c] - 1
                     # Clear all covers and erase all primes
-                    rows_covered[:] = False
-                    cols_covered[:] = False
-                    zero_matrix[zero_matrix == 2] = 0
+                    rows_covered = [False] * workers
+                    cols_covered = [False] * jobs
+                    for r in range(workers):
+                        for c in range(jobs):
+                            if zero_matrix[r][c] == 2:
+                                zero_matrix[r][c] = 0
                     found = True
         done = not found
-    num_covered = np.sum(cols_covered) + np.sum(rows_covered)
+    
+    num_covered = sum(cols_covered) + sum(rows_covered)
     return num_covered, zero_matrix, rows_covered, cols_covered
 
-def kuhn_munkres(matrix : np.ndarray) -> float:
+def kuhn_munkres(matrix : List[List[float]]) -> float:
     '''
     Implementation of the Hungarian Algorithm (Kuhn-Munkres) to find the minimum cost matching
     '''
-    workers, jobs = matrix.shape
-    original = matrix.copy()
+    workers = len(matrix)
+    jobs = len(matrix[0]) if workers > 0 else 0
+    original = [row[:] for row in matrix]
     
     # Step 1: Minimization of rows
     for i in range(workers):
-        row_min = np.min(matrix[i, :])
+        row_min = min(matrix[i])
         for j in range(jobs):
             if matrix[i][j] < 1e9:
                 matrix[i][j] -= row_min
     
     # Step 2: Minimization of columns
     for j in range(jobs):
-        col_min = np.min(matrix[:, j])
+        col_min = min(matrix[i][j] for i in range(workers))
         for i in range(workers):
             if matrix[i][j] < 1e9:
                 matrix[i][j] -= col_min
@@ -236,12 +243,17 @@ def kuhn_munkres(matrix : np.ndarray) -> float:
         if num_covered == min(workers, jobs):
             done = True
         else:
-            uncovered_values = matrix[~rows_covered][:, ~cols_covered]
+            uncovered_values = [matrix[i][j] for i in range(workers) for j in range(jobs) 
+                              if not rows_covered[i] and not cols_covered[j]]
             
-            if uncovered_values.size > 0:
-                min_uncovered = np.min(uncovered_values)
-                matrix[~rows_covered, :] -= min_uncovered
-                matrix[:, cols_covered] += min_uncovered
+            if uncovered_values:
+                min_uncovered = min(uncovered_values)
+                for i in range(workers):
+                    for j in range(jobs):
+                        if not rows_covered[i]:
+                            matrix[i][j] -= min_uncovered
+                        if cols_covered[j]:
+                            matrix[i][j] += min_uncovered
             else:
                 done = True
                 
@@ -249,7 +261,7 @@ def kuhn_munkres(matrix : np.ndarray) -> float:
     total_cost = 0.0
     for i in range(workers):
         for j in range(jobs):
-            if zero_matrix[i][j] == 1: # Find the starred zeros
+            if zero_matrix[i][j] == 1:  # Find the starred zeros
                 total_cost += original[i][j]
 
     # Return infinity if cost is too high
