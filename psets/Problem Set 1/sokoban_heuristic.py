@@ -85,26 +85,9 @@ def calculate_dist(problem: SokobanProblem) -> Dict[Point, Dict[Point, int]]:
         total_dist[goal] = dist
     return total_dist
 
-def minimum_iteration(matrix : List[List[float]]) -> float:
-    '''
-    Finds the minimum value in each row and returns the sum of these minimums
-    '''
-    workers = len(matrix)
-    jobs = len(matrix[0]) if workers > 0 else 0
-    current_min = float('inf')
-    for cols in itertools.permutations(range(jobs), workers):
-        sum = 0
-        for i in range(workers):
-            sum += matrix[i][cols[i]]
-        current_min = min(current_min, sum)
-    if current_min >= 1e9:
-        return float('inf')
-    return current_min
-
-
 def strong_heuristic(problem: SokobanProblem, state: SokobanState) -> float:
     '''
-    This heuristic computes the minimum cost to move all crates to goals using the Hungarian Algorithm
+    This heuristic computes the minimum cost to move all crates to goals using the Minimum Iteration Method
     It also checks for deadlocks and returns infinity if any crate is in a deadlock position
     '''
     cache = problem.cache()
@@ -134,13 +117,12 @@ def strong_heuristic(problem: SokobanProblem, state: SokobanState) -> float:
             goal = goals[j]
             distances[i][j] = dist[goal].get(crate, 1e9)
     
-    # Use the minimum iteration method to find the minimum sum
-    total_sum = minimum_iteration(distances)
+    # Use the Hungarian method to find the minimum sum
+    total_sum = kuhn_munkres(distances)
     return total_sum
 
 
-# ---------------- Unused Hungarian Algorithm Implementation ---------------- #
-
+# ---------------- Hungarian Algorithm Implementation ---------------- #
 def find_path(location: tuple, zero_matrix: List[List[int]]):
     '''
     Finds an augmenting path in the zero matrix
@@ -166,9 +148,9 @@ def mark_zeroes(matrix: List[List[float]]):
     zero_matrix = [[0 for _ in range(jobs)] for _ in range(workers)]
     rows_covered = [False] * workers
     cols_covered = [False] * jobs
-    used_cols = [False] * jobs
     
-    # For each row, find an arbitrary zero and mark it (I mark the first zero I find that still works within the constraints)
+    # Greedy matching: mark the first zero found in each row/col
+    used_cols = [False] * jobs
     for i in range(workers):
         for j in range(jobs):
             if matrix[i][j] == 0 and not used_cols[j]:
@@ -176,39 +158,62 @@ def mark_zeroes(matrix: List[List[float]]):
                 used_cols[j] = True
                 break
     
-    done = False
-    while not done:
+    while True:
         # Cover columns containing a starred zero
         for j in range(jobs):
-            if any(zero_matrix[i][j] == 1 for i in range(workers)):
-                cols_covered[j] = True
-        found = False
+            if not cols_covered[j]:
+                for i in range(workers):
+                    if zero_matrix[i][j] == 1 and not rows_covered[i]:
+                        cols_covered[j] = True
+                        break
+
+        # Find an uncovered zero
+        found_zero = False
+        zero_r, zero_c = -1, -1
         for i in range(workers):
-            for j in range(jobs):
-                if matrix[i][j] == 0 and not rows_covered[i] and not cols_covered[j]:
-                    zero_matrix[i][j] = 2  # Prime the zero
-                    found_starred = False
-                    # Check if there is a starred zero in the same row
-                    for col in range(jobs):
-                        if zero_matrix[i][col] == 1:
-                            rows_covered[i] = True
-                            cols_covered[col] = False
-                            found_starred = True
-                            break
-                    if not found_starred:
-                        path = find_path((i, j), zero_matrix)
-                        # For all zeros in the path, unstar starred zeros and star primed zeros
-                        for r, c in path:
-                            zero_matrix[r][c] = zero_matrix[r][c] - 1
-                    # Clear all covers and erase all primes
-                    rows_covered = [False] * workers
-                    cols_covered = [False] * jobs
-                    for r in range(workers):
-                        for c in range(jobs):
-                            if zero_matrix[r][c] == 2:
-                                zero_matrix[r][c] = 0
-                    found = True
-        done = not found
+            if not rows_covered[i]:
+                for j in range(jobs):
+                    if not cols_covered[j] and matrix[i][j] == 0:
+                        zero_r, zero_c = i, j
+                        found_zero = True
+                        break
+            if found_zero: break
+            
+        if not found_zero:
+            break # No uncovered zeros left, we have the minimal cover
+            
+        # Prime the zero
+        zero_matrix[zero_r][zero_c] = 2
+        
+        # Check if there is a starred zero in the same row
+        star_c = -1
+        for j in range(jobs):
+            if zero_matrix[zero_r][j] == 1:
+                star_c = j
+                break
+        
+        if star_c != -1:
+            # If there is a starred zero, cover this row and uncover the star's column
+            rows_covered[zero_r] = True
+            cols_covered[star_c] = False
+        else:
+            # No starred zero in row -> Augmenting path found
+            path = find_path((zero_r, zero_c), zero_matrix)
+            
+            # Unstar starred zeros and star primed zeros in path
+            for r, c in path:
+                if zero_matrix[r][c] == 1:
+                    zero_matrix[r][c] = 0
+                else:
+                    zero_matrix[r][c] = 1
+            
+            # Clear all covers and erase all primes to restart cover process
+            rows_covered = [False] * workers
+            cols_covered = [False] * jobs
+            for r in range(workers):
+                for c in range(jobs):
+                    if zero_matrix[r][c] == 2:
+                        zero_matrix[r][c] = 0
     
     num_covered = sum(cols_covered) + sum(rows_covered)
     return num_covered, zero_matrix, rows_covered, cols_covered
