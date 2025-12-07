@@ -21,9 +21,11 @@ class ValueIterationAgent(Agent[S, A]):
     # Given a state, compute its utility using the bellman equation
     # if the state is terminal, return 0
     def compute_bellman(self, state: S) -> float:
+        # If the state is terminal, its utility is 0 since there are no actions to take
         if self.mdp.is_terminal(state):
             return 0.0
         curr_bellman = float('-INF')
+        # For each action, compute its bellman equation value and take the maximum
         for action in self.mdp.get_actions(state):
             bellman = 0.0
             next_states = self.mdp.get_successor(state, action)
@@ -38,13 +40,16 @@ class ValueIterationAgent(Agent[S, A]):
     # then returns True if the utilities has converged (the maximum utility change is less or equal the tolerance)
     # and False otherwise
     def update(self, tolerance: float = 0) -> bool:
-        V = self.utilities.copy()
+        U = self.utilities.copy()
         max_diff = 0.0
+        # For each state, compute its new utility using the bellman equation
         for state in self.mdp.get_states():
             new_utility = self.compute_bellman(state)
             max_diff = max(max_diff, abs(new_utility - self.utilities[state]))
-            V[state] = new_utility
-        self.utilities = V
+            # Store the new utility in U(i+1)
+            U[state] = new_utility
+        # Update the utilities to U(i+1)
+        self.utilities = U
         return max_diff <= tolerance
 
     # This function applies value iteration starting from the current utilities stored in the agent and stores the new utilities in the agent
@@ -53,8 +58,9 @@ class ValueIterationAgent(Agent[S, A]):
     def train(self, iterations: Optional[int] = None, tolerance: float = 0) -> int:
         it = 0
         while True:
-            it += 1
-            converged = self.update(tolerance)
+            it += 1 # iteration count
+            converged = self.update(tolerance) # update the utilities
+            # Check for convergence or max iterations
             if converged or (iterations is not None and it >= iterations):
                 break
         return it
@@ -65,16 +71,19 @@ class ValueIterationAgent(Agent[S, A]):
         if self.mdp.is_terminal(state):
             return None
         best_action = None
+        # Find the action that maximizes the expected utility
         for action in self.mdp.get_actions(state):
             next_states = self.mdp.get_successor(state, action)
             expected_utility = 0.0
+            # For each action, compute its bellman equation value
             for s, p in next_states.items():
                 r = self.mdp.get_reward(state, action , s)
                 expected_utility += p * (r + self.discount_factor * self.utilities[s])
+            # Take the first action if best_action is None or if the expected utility is better than the best found so far
             if best_action is None or expected_utility > best_expected_utility:
                 best_action = action
                 best_expected_utility = expected_utility
-        return best_action
+        return best_action # Return the best action found
     
     # Save the utilities to a json file
     def save(self, env: Environment[S, A], file_path: str):

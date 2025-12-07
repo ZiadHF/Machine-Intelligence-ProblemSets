@@ -98,8 +98,8 @@ class CryptArithmeticProblem(Problem):
                 )
 
         # For each position i (from right to left), add a constraint to ensure that:
-        # LHS0[i] + LHS1[i] + C[i-1] = RHS[i] + 10*C[i]
-        # We will create an auxiliary variable that encodes the sum LHS0[i] + LHS1[i] + C[i-1]
+        # LHS0[i] + LHS1[i] + C[i] = RHS[i] + 10*C[i+1]
+        # We will create an auxiliary variable that encodes the sum LHS0[i] + LHS1[i] + C[i]
 
         for i in range(carries):
             # Get the letters from i (rightmost)
@@ -116,7 +116,7 @@ class CryptArithmeticProblem(Problem):
             # We encode the sum as: AUX = lhs0 * 20 + lhs1 * 2 + cin
             # This allows us to extract lhs0, lhs1 and cin from AUX which
             # allows to work as a binary constraint
-            problem.domains[aux] = set(range(200))  # Max value is 9*20 + 9*2 + 1 = 189
+            problem.domains[aux] = set(range(200))  # Max value is 9*20 + 9*2 + 1 = 199
 
             # If lhs0 exists, add a binary constraint between lhs0 and aux
             if lhs0 is not None:
@@ -141,7 +141,7 @@ class CryptArithmeticProblem(Problem):
                 )
             else:
                 # If lhs1 does not exist, restrict aux domain accordingly
-                # we remove all values where lhs1 != 0 which makes our domain now from 0 to 9 and 180 to 189
+                # we remove all values where lhs1 != 0 which makes our domain now from multiples of 20 only + cin (0 or 1) 
                 problem.domains[aux] = {value for value in problem.domains[aux] if ((value // 2) % 10) == 0}
 
             # If cin exists, add a binary constraint between cin and aux
